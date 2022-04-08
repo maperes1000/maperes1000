@@ -1,0 +1,38 @@
+PROMPT CREATE OR REPLACE PROCEDURE bas_prc_rel_validade_produto
+CREATE OR REPLACE procedure bas_prc_rel_validade_produto(pi_id_empresa   in number,
+                                                         pi_id_coletor   in number,
+                                                         pi_arquivo      in varchar2,
+                                                         pi_data_inicial in date,
+                                                         pi_data_final   in date,
+                                                         po_retorno      out sys_refcursor) as
+begin
+    bas_pkg_global.prc_emp(pi_id_empresa);
+
+    begin
+        if instr(pi_arquivo, '.txt') = 0 then
+            bas_pkg_coletor.prc_dados_coletor(pi_id_coletor, pi_arquivo || '.txt');
+        else
+            bas_pkg_coletor.prc_dados_coletor(pi_id_coletor, pi_arquivo);
+        end if;
+    exception
+        when others then
+            null;
+    end;
+
+    open po_retorno for
+        select bas_pkg_global.fnc_emp id_empresa,
+               bas_pkg_global.fnc_emp_nome desc_empresa,
+               t.t1 id_produto,
+               p.descritivo desc_produto,
+               to_char(to_date(t.t2, 'DD/MM/RRRR'), 'DD/MM/RRRR') data_validade
+          from bas_t_tmp_auxiliar t,
+               produtos           p
+         where to_number(t.t1) = p.id
+           and ((pi_data_inicial is null and pi_data_final is null) or
+                (pi_data_inicial is not null and pi_data_final is not null and
+                to_date(t.t2, 'DD/MM/RRRR') between pi_data_inicial and pi_data_final))
+         order by to_date(t.t2, 'DD/MM/RRRR'),
+                  to_number(t.t1);
+end;
+/
+
